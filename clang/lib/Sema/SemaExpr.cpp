@@ -2009,6 +2009,25 @@ NonOdrUseReason Sema::getNonOdrUseReasonInCurrentContext(ValueDecl *D) {
   return NOUR_None;
 }
 
+static HyperobjectAttr *getHyperobjectAttr(Expr *E) {
+  /* The hyperobject attribute applies to variables and typedefs. */
+  if (isa<DeclRefExpr>(E)) {
+    ValueDecl *D = cast<DeclRefExpr>(E)->getDecl();
+    if (isa<VarDecl>(D) && !isa<ParmVarDecl>(D))
+      if (HyperobjectAttr *H = cast<VarDecl>(D)->getAttr<HyperobjectAttr>())
+	return H;
+  }
+  QualType Type = E->getType();
+  while (const TypedefType *T = Type->getAs<TypedefType>()) {
+    TypedefNameDecl *Inner = T->getDecl();
+    if (HyperobjectAttr *H = Inner->getAttr<HyperobjectAttr>())
+      return H;
+    Type = Inner->getUnderlyingType();
+  }
+  return 0;
+}
+
+
 // If this is a reference to a variable with a reducer attribute,
 // change it to a call to the view lookup function.
 Expr *Sema::BuildHyperobjectLookup(Expr *E) {
@@ -2017,30 +2036,22 @@ Expr *Sema::BuildHyperobjectLookup(Expr *E) {
 
   ValueDecl *D = cast<DeclRefExpr>(E)->getDecl();
 
-  if (!isa<VarDecl>(D))
+  /* Typedefs can cause ParmVarDecls to gain the hyperobject attribute.  */
+  if (!isa<VarDecl>(D) || isa<ParmVarDecl>(D))
     return E;
-
-  QualType OuterType = D->getType();
 
   /* The hyperobject attribute may be on the declaration or a
      typedef name providing its type, but not on any other
-     type declaration.
-     TODO: A loop is probably required. */
-  HyperobjectAttr *H = cast<VarDecl>(D)->getAttr<HyperobjectAttr>();
-  if (!H) {
-    const TypedefType *T = OuterType->getAs<TypedefType>();
-    if (!T)
-      return E;
-    H = T->getDecl()->getAttr<HyperobjectAttr>();
-    if (!H)
-      return E;
-  }
+     type declaration. */
+  HyperobjectAttr *H = getHyperobjectAttr(E);
+  if (!H)
+    return E;
 
   Expr *Lookup = H->getLookup();
   if (!Lookup || !isa<DeclRefExpr>(Lookup))
     return E;
 
-  QualType ResultType = OuterType.getNonReferenceType();
+  QualType ResultType = D->getType().getNonReferenceType();
   QualType Ptr = Context.getPointerType(ResultType);
 
   Expr *VarAddr = UnaryOperator::Create(Context, E, UO_AddrOf, Ptr,
