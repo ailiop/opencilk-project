@@ -172,8 +172,11 @@ void OpenCilkABI::prepareModule() {
   FunctionType *Grainsize64FnTy = FunctionType::get(Int64Ty, {Int64Ty}, false);
   FunctionType *PtrPtrTy = FunctionType::get(VoidPtrTy, {VoidPtrTy}, false);
   FunctionType *UnregTy = FunctionType::get(VoidTy, {VoidPtrTy}, false);
-  FunctionType *RegTy =
+  FunctionType *Reg32Ty =
       FunctionType::get(VoidTy, {VoidPtrTy, Int32Ty, VoidPtrTy,
+              VoidPtrTy, VoidPtrTy}, false);
+  FunctionType *Reg64Ty =
+      FunctionType::get(VoidTy, {VoidPtrTy, Int64Ty, VoidPtrTy,
               VoidPtrTy, VoidPtrTy}, false);
 
   // Create an array of CilkRTS functions, with their associated types and
@@ -204,7 +207,8 @@ void OpenCilkABI::prepareModule() {
        CilkRTSCilkForGrainsize64},
       {"__cilkrts_reducer_token", PtrPtrTy, CilkRTSReducerToken},
       {"__cilkrts_reducer_lookup", PtrPtrTy, CilkRTSReducerLookup},
-      {"__cilkrts_reducer_register", RegTy, CilkRTSReducerRegister},
+      {"__cilkrts_reducer_register_32", Reg32Ty, CilkRTSReducerRegister32},
+      {"__cilkrts_reducer_register_64", Reg64Ty, CilkRTSReducerRegister64},
       {"__cilkrts_reducer_unregister", UnregTy, CilkRTSReducerUnregister},
   };
 
@@ -953,9 +957,13 @@ void OpenCilkABI::lowerReducerOperation(CallBase *CI) {
   case Intrinsic::hyper_of:
     Fn = Get__cilkrts_reducer_token();
     break;
-  case Intrinsic::reducer_register:
-    Fn = Get__cilkrts_reducer_register();
+  case Intrinsic::reducer_register: {
+    const Type *SizeType = CI->getArgOperand(1)->getType();
+    assert(isa<IntegerType>(SizeType));
+    Fn = Get__cilkrts_reducer_register(SizeType->getIntegerBitWidth());
+    assert(Fn);
     break;
+  }
   case Intrinsic::reducer_unregister:
     Fn = Get__cilkrts_reducer_unregister();
     break;

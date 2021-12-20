@@ -1870,23 +1870,23 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
                                 VoidPtrTy);
     llvm::Value *Addr =
       Builder.CreateBitCast(emission.Addr.getPointer(), CGM.VoidPtrTy);
-    /* The interface is specified with 32 bit size. */
-    /* TODO: Give the builtin a variable width. */
+    llvm::Type *SizeType = ConvertType(getContext().getSizeType());
+    unsigned SizeBits = SizeType->getIntegerBitWidth();
     llvm::Value *Size = nullptr;
-    llvm::Type *I32 = llvm::Type::getInt32Ty(getLLVMContext());
     if (uint64_t Bits = getContext().getTypeSize(type)) {
-      Size = llvm::Constant::getIntegerValue(I32, llvm::APInt(32, Bits / 8));
+      Size =
+          llvm::Constant::getIntegerValue(SizeType,
+                                          llvm::APInt(SizeBits, Bits / 8));
     } else {
       auto V = getVLASize(type);
-      llvm::Type *SizeType = ConvertType(getContext().getSizeType());
       llvm::Value *Size1 = llvm::Constant::getIntegerValue(SizeType, llvm::APInt(64, getContext().getTypeSize(V.Type) / 8));
       Size = Builder.CreateNUWMul(V.NumElts, Size1);
-      if (SizeType->getIntegerBitWidth() > 32)
-	Size = Builder.CreateTrunc(Size, I32);
     }
     // TODO: mark this call as registering a local
     // TODO: add better handling of attribute arguments that evaluate to null
-    llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::reducer_register);
+    SmallVector<llvm::Type *, 1> Types = {SizeType};
+    llvm::Function *F =
+        CGM.getIntrinsic(llvm::Intrinsic::reducer_register, Types);
     Builder.CreateCall(F, {Addr, Size, Reduce, Init, Destruct});
   }
 

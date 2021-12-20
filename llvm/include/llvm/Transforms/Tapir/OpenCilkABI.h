@@ -46,7 +46,8 @@ class OpenCilkABI final : public TapirTarget {
   FunctionCallee CilkRTSEnterLandingpad = nullptr;
   FunctionCallee CilkRTSPauseFrame = nullptr;
 
-  FunctionCallee CilkRTSReducerRegister = nullptr;
+  FunctionCallee CilkRTSReducerRegister32 = nullptr;
+  FunctionCallee CilkRTSReducerRegister64 = nullptr;
   FunctionCallee CilkRTSReducerUnregister = nullptr;
   FunctionCallee CilkRTSReducerLookup = nullptr;
   FunctionCallee CilkRTSReducerToken = nullptr;
@@ -96,8 +97,12 @@ class OpenCilkABI final : public TapirTarget {
   FunctionCallee Get__cilkrts_cilk_for_grainsize_64() {
     return CilkRTSCilkForGrainsize64;
   }
-  FunctionCallee Get__cilkrts_reducer_register() {
-    return CilkRTSReducerRegister;
+  FunctionCallee Get__cilkrts_reducer_register(unsigned Bits) {
+    if (Bits == 32)
+      return CilkRTSReducerRegister32;
+    if (Bits == 64)
+      return CilkRTSReducerRegister64;
+    return 0;
   }
   FunctionCallee Get__cilkrts_reducer_unregister() {
     return CilkRTSReducerUnregister;
