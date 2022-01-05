@@ -574,8 +574,8 @@ namespace {
     const VarDecl &Var;
     ReducerCallbacksAttr *Reducer;
 
-    CallReducerCleanup(const VarDecl *VarPtr)
-      : Var(*VarPtr), Reducer(VarPtr->getAttr<ReducerCallbacksAttr>()) {
+    CallReducerCleanup(const VarDecl *VarPtr, ReducerCallbacksAttr *R)
+      : Var(*VarPtr), Reducer(R) {
       assert(Reducer);
     }
 
@@ -2137,8 +2137,8 @@ void CodeGenFunction::EmitAutoVarCleanups(const AutoVarEmission &emission) {
     EHStack.pushCleanup<CallCleanupFunction>(NormalAndEHCleanup, F, &Info, &D);
   }
 
-  if (D.hasAttr<ReducerCallbacksAttr>()) {
-    EHStack.pushCleanup<CallReducerCleanup>(NormalAndEHCleanup, &D);
+  if (ReducerCallbacksAttr *R = getReducer(&D)) {
+    EHStack.pushCleanup<CallReducerCleanup>(NormalAndEHCleanup, &D, R);
   }
 
   // If this is a block variable, call _Block_object_destroy
