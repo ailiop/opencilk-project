@@ -1857,14 +1857,14 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     assert(!emission.IsEscapingByRef); // block reducers not supported
     llvm::Value *Empty = CGM.EmitNullConstant(getContext().VoidPtrTy);
     llvm::Value *Reduce = Empty, *Init = Empty, *Destruct = Empty;
-    if (Expr *InitExpr = CGM.ValidateReducerCallback(R->getInit()))
+    if (Expr *InitExpr = CGM.ValidateReducerCallback(R->getInit(), 2))
       Init = Builder.CreateBitCast(EmitLValue(InitExpr).getPointer(*this),
                                    VoidPtrTy);
-    if (Expr *ReduceExpr = CGM.ValidateReducerCallback(R->getReduce()))
+    if (Expr *ReduceExpr = CGM.ValidateReducerCallback(R->getReduce(), 3))
       Reduce =
           Builder.CreateBitCast(EmitLValue(ReduceExpr).getPointer(*this),
                                 VoidPtrTy);
-    if (Expr *DestructExpr = CGM.ValidateReducerCallback(R->getDestruct()))
+    if (Expr *DestructExpr = CGM.ValidateReducerCallback(R->getDestruct(), 2))
       Destruct =
           Builder.CreateBitCast(EmitLValue(DestructExpr).getPointer(*this),
                                 VoidPtrTy);

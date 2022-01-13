@@ -4151,7 +4151,7 @@ void CodeGenModule::maybeSetTrivialComdat(const Decl &D,
 
 
 // Reducer callbacks must be declarations or null.
-Expr *CodeGenModule::ValidateReducerCallback(Expr *E) {
+Expr *CodeGenModule::ValidateReducerCallback(Expr *E, unsigned NumArgs) {
   if (!E)
     return nullptr;
   E = E->IgnoreParenCasts();
@@ -4159,15 +4159,21 @@ Expr *CodeGenModule::ValidateReducerCallback(Expr *E) {
   case Stmt::CXXNullPtrLiteralExprClass:
     return nullptr;
   case Stmt::IntegerLiteralClass:
-    if (cast<IntegerLiteral>(E)->getValue() != 0)
-      ErrorUnsupported(E, "reducer callback");
-    return nullptr;
+    if (cast<IntegerLiteral>(E)->getValue() == 0)
+      return nullptr;
+    break;
   case Stmt::DeclRefExprClass:
-    return E;
+    if (const FunctionProtoType *F =
+	dyn_cast<FunctionProtoType>(E->getType())) {
+      if (F->getNumParams() == NumArgs)
+	return E;
+    }
+    break;
   default:
-    ErrorUnsupported(E, "reducer callback");
-    return nullptr;
+    break;
   }
+  Diags.Report(E->getExprLoc(), diag::err_invalid_reducer_callback) << NumArgs;
+  return nullptr;
 }
 
 /// Pass IsTentative as true if you want to create a tentative definition.
@@ -4200,14 +4206,14 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
     /* TODO: !GlobalVariable::hasWeakLinkage() */
     llvm::Value *Empty = EmitNullConstant(getContext().VoidPtrTy);
     llvm::Value *Combine = Empty, *Init = Empty, *Destruct = Empty;
-    if (Expr *InitExpr = ValidateReducerCallback(R->getInit()))
+    if (Expr *InitExpr = ValidateReducerCallback(R->getInit(), 2))
       Init = Builder.CreateBitCast(EmitLValue(InitExpr).getPointer(*this),
                                    VoidPtrTy);
-    if (Expr *CombineExpr = ValidateReducerCallback(R->getCombine()))
+    if (Expr *CombineExpr = ValidateReducerCallback(R->getCombine(), 3))
       Combine =
           Builder.CreateBitCast(EmitLValue(CombineExpr).getPointer(*this),
                                 VoidPtrTy);
-    if (Expr *DestructExpr = ValidateReducerCallback(R->getDestruct()))
+    if (Expr *DestructExpr = ValidateReducerCallback(R->getDestruct(), 2))
       Destruct =
           Builder.CreateBitCast(EmitLValue(DestructExpr).getPointer(*this),
                                 VoidPtrTy);
