@@ -681,6 +681,10 @@ ExprResult Sema::DefaultLvalueConversion(Expr *E) {
             dyn_cast<ObjCIvarRefExpr>(E->IgnoreParenCasts()))
     DiagnoseDirectIsaAccess(*this, OIRE, SourceLocation(), /* Expr*/nullptr);
 
+  if (getLangOpts().getCilk() == LangOptions::Cilk_opencilk) {
+    E = BuildHyperobjectLookup(E);
+  }
+
   // C++ [conv.lval]p1:
   //   [...] If T is a non-class type, the type of the prvalue is the
   //   cv-unqualified version of T. Otherwise, the type of the
@@ -2031,15 +2035,6 @@ static HyperobjectAttr *getHyperobjectAttr(Expr *E) {
 // If this is a reference to a variable with a reducer attribute,
 // change it to a call to the view lookup function.
 Expr *Sema::BuildHyperobjectLookup(Expr *E) {
-  if (!isa<DeclRefExpr>(E))
-    return E;
-
-  ValueDecl *D = cast<DeclRefExpr>(E)->getDecl();
-
-  /* Typedefs can cause ParmVarDecls to gain the hyperobject attribute.  */
-  if (!isa<VarDecl>(D) || isa<ParmVarDecl>(D))
-    return E;
-
   /* The hyperobject attribute may be on the declaration or a
      typedef name providing its type, but not on any other
      type declaration. */
@@ -2051,7 +2046,13 @@ Expr *Sema::BuildHyperobjectLookup(Expr *E) {
   if (!Lookup || !isa<DeclRefExpr>(Lookup))
     return E;
 
-  QualType ResultType = D->getType().getNonReferenceType();
+  QualType ResultType = E->getType().getNonReferenceType();
+  /* If the hyperobject attribute is on a declaration ResultType
+     is the underlying type.  If it is on a typedef look past
+     any typedefs to find a type without attributes. */
+  while (const TypedefType *TT = ResultType->getAs<TypedefType>()) {
+    ResultType = TT->desugar();
+  }
   QualType Ptr = Context.getPointerType(ResultType);
 
   Expr *VarAddr = UnaryOperator::Create(Context, E, UO_AddrOf, Ptr,
