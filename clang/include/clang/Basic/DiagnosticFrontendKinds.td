@@ -300,7 +300,7 @@ def warn_profile_data_unprofiled : Warning<
 } // end of instrumentation issue category
 
 def err_invalid_reducer_callback : Error<
-  "reducer callback should be function with %0 parameter%s0"
+  "reducer callback should be function with %0 pointer parameter%s0"
 >;
 
 }

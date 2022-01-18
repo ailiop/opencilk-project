@@ -4149,6 +4149,15 @@ void CodeGenModule::maybeSetTrivialComdat(const Decl &D,
   GO.setComdat(TheModule.getOrInsertComdat(GO.getName()));
 }
 
+static bool CheckFunctionParams(const FunctionProtoType *F, unsigned NumArgs) {
+  if (F->getNumParams() != NumArgs)
+    return false;
+  for (unsigned I = 0; I < NumArgs; ++I) {
+    if (!F->getParamType(I)->isPointerType())
+      return false;
+  }
+  return true;
+}
 
 // Reducer callbacks must be declarations or null.
 Expr *CodeGenModule::ValidateReducerCallback(Expr *E, unsigned NumArgs) {
@@ -4165,7 +4174,7 @@ Expr *CodeGenModule::ValidateReducerCallback(Expr *E, unsigned NumArgs) {
   case Stmt::DeclRefExprClass:
     if (const FunctionProtoType *F =
 	dyn_cast<FunctionProtoType>(E->getType())) {
-      if (F->getNumParams() == NumArgs)
+      if (CheckFunctionParams(F, NumArgs))
 	return E;
     }
     break;
