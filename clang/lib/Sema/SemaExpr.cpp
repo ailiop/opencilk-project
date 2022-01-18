@@ -2031,10 +2031,12 @@ static HyperobjectAttr *getHyperobjectAttr(Expr *E) {
   return 0;
 }
 
-
 // If this is a reference to a variable with a reducer attribute,
 // change it to a call to the view lookup function.
 Expr *Sema::BuildHyperobjectLookup(Expr *E) {
+  if (getLangOpts().getCilk() != LangOptions::Cilk_opencilk)
+    return E;
+
   /* The hyperobject attribute may be on the declaration or a
      typedef name providing its type, but not on any other
      type declaration. */
@@ -14004,9 +14006,11 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
   // Check for illegal spawns
   // TODO: Add support for _Cilk_spawn on the RHS of a compound-assignment
   // operator.
-  if (!BinaryOperator::isAssignmentOp(Opc) ||
-      BinaryOperator::isCompoundAssignmentOp(Opc))
+  if (BinaryOperator::isAssignmentOp(Opc)) {
+    LHS = BuildHyperobjectLookup(LHS.get());
+  } else {
     CheckForIllegalSpawn(*this, RHS.get());
+  }
   CheckForIllegalSpawn(*this, LHS.get());
 
   switch (Opc) {
