@@ -2731,16 +2731,7 @@ Sema::ActOnIdExpression(Scope *S, CXXScopeSpec &SS,
     return BuildTemplateIdExpr(SS, TemplateKWLoc, R, ADL, TemplateArgs);
   }
 
-  ExprResult Res = BuildDeclarationNameExpr(SS, R, ADL);
-
-  /* OpenCilk extension: Unless IsAddressOfOperand == 2 (see unary &&
-     in Parser::ParseCastExpression), hyperobject references implicitly
-     call the runtime. */
-  if (!Res.isInvalid() && IsAddressOfOperand <= 1 &&
-      getLangOpts().getCilk() == LangOptions::Cilk_opencilk)
-    return Sema::BuildHyperobjectLookup(Res.get());
-
-  return Res;
+  return BuildDeclarationNameExpr(SS, R, ADL);
 }
 
 /// BuildQualifiedDeclarationNameExpr - Build a C++ qualified
@@ -6230,6 +6221,9 @@ static FunctionDecl *rewriteBuiltinFunctionDecl(Sema *Sema, ASTContext &Context,
 
   if (!Context.BuiltinInfo.hasPtrArgsOrResult(FDecl->getBuiltinID()) || !FT ||
       ArgExprs.size() < FT->getNumParams())
+    return nullptr;
+
+  if (FDecl->getBuiltinID() == Builtin::BI__builtin_addressof)
     return nullptr;
 
   bool NeedsNewDecl = false;
@@ -14006,12 +14000,12 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
   // Check for illegal spawns
   // TODO: Add support for _Cilk_spawn on the RHS of a compound-assignment
   // operator.
-  if (BinaryOperator::isAssignmentOp(Opc)) {
-    LHS = BuildHyperobjectLookup(LHS.get());
-  } else {
+  if (!BinaryOperator::isAssignmentOp(Opc) ||
+      BinaryOperator::isCompoundAssignmentOp(Opc))
     CheckForIllegalSpawn(*this, RHS.get());
-  }
   CheckForIllegalSpawn(*this, LHS.get());
+  if (BinaryOperator::isAssignmentOp(Opc))
+    LHS = BuildHyperobjectLookup(LHS.get());
 
   switch (Opc) {
   case BO_Assign:
@@ -14684,11 +14678,13 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
                                                 Opc == UO_PreInc ||
                                                 Opc == UO_PreDec);
     CanOverflow = isOverflowingIntegerType(Context, resultType);
+    Input = BuildHyperobjectLookup(InputExpr);
     break;
   case UO_AddrOf:
     resultType = CheckAddressOfOperand(Input, OpLoc);
     CheckAddressOfNoDeref(InputExpr);
     RecordModifiableNonNullParam(*this, InputExpr);
+    Input = BuildHyperobjectLookup(InputExpr);
     break;
   case UO_Deref: {
     Input = DefaultFunctionArrayLvalueConversion(Input.get());
