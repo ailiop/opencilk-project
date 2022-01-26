@@ -1531,16 +1531,19 @@ UnderlyingNoAlias(const Value *O1, const Value *O2, AAQueryInfo &AAQI) {
   return MayAlias;
 }
 
-#define C_INJECTIVE  1
-#define C_PURE       2
-#define C_VIEW       4
-#define C_TOKEN      8
+// TODO: C_VIEW and C_STRAND may be redundant
+#define C_INJECTIVE  0x01
+#define C_PURE       0x02 // including strand pure function in same strand
+#define C_VIEW       0x04
+#define C_TOKEN      0x08
+#define C_STRAND     0x10 // excluding strand pure function in same strand
 
 static const std::pair<Attribute::AttrKind, int> AttrTable[] = {
   {Attribute::Injective, C_INJECTIVE},
   {Attribute::ReducerRegister, C_TOKEN},
   {Attribute::HyperView, C_VIEW},
-  {Attribute::HyperToken, C_TOKEN}
+  {Attribute::HyperToken, C_TOKEN},
+  {Attribute::StrandPure, C_STRAND},
 };
 
 // Tapir/OpenCilk code has some simple optimization opportunities.
@@ -1563,10 +1566,19 @@ static const Value *getRecognizedArgument(const Value *V, bool InSameSpindle,
     if (C->hasFnAttr(E.first))
       Behavior |= E.second;
   }
-  if ((InSameSpindle && C->isStrandPure()) ||
-      (C->doesNotAccessMemory() && C->doesNotThrow() &&
-       C->hasFnAttr(Attribute::WillReturn)))
+
+  // Make C_STRAND and C_PURE mutually exclusive.
+  if (Behavior & C_STRAND) {
+    if (InSameSpindle)
+      Behavior = (Behavior & ~C_STRAND) | C_PURE;
+    else
+      Behavior &= ~C_PURE;
+  }
+  else if (C->doesNotAccessMemory() && C->doesNotThrow() &&
+           C->hasFnAttr(Attribute::WillReturn)) {
     Behavior |= C_PURE;
+  }
+
   if (Behavior == 0)
     return nullptr;
   Fn = C->getCalledOperand();
@@ -1623,23 +1635,29 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     Known2 = isIdentifiedObject(U2);
   }
 
-  // Token lookups do not alias any identified object.
-  // View lookups do not alias allocas that do not alias the argument
+  // Rules, in order:
+  // 1. Token lookups are as unique as allocas.
+  // 2. Potentially unequal values based on the same object may alias.
+  // 3. View lookups do not alias allocas that do not alias the argument
   if (!A1) {
     if (!Known2)
       return MayAlias;
-    if (Behavior2 & C_TOKEN)
+    if (Behavior2 & C_TOKEN) // 1
       return NoAlias;
-    if (Behavior2 & C_VIEW)
+    if (O1 == U2)            // 2
+      return MayAlias;
+    if (Behavior2 & C_VIEW)  // 3
       return UnderlyingNoAlias(O1, U2, AAQI);
     return MayAlias;
   }
   if (!A2) {
     if (!Known1)
       return MayAlias;
-    if (Behavior1 & C_TOKEN)
+    if (Behavior1 & C_TOKEN) // 1
       return NoAlias;
-    if (Behavior1 & C_VIEW)
+    if (U1 == O2)            // 2
+      return MayAlias;
+    if (Behavior1 & C_VIEW)  // 3
       return UnderlyingNoAlias(U1, O2, AAQI);
     return MayAlias;
   }
