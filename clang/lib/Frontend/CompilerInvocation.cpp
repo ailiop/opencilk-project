@@ -2704,6 +2704,8 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
     Opts.setCilk(LangOptions::Cilk_opencilk);
     if (Args.hasArg(OPT_fopencilk_enable_pedigrees))
       Opts.CilkOptions.set(CilkOpt_Pedigrees, true);
+    if (Args.hasArg(OPT_fopencilk_enable_splitters))
+      Opts.CilkOptions.set(CilkOpt_Splitters, true);
   } else if (CilkPlus) {
     Opts.setCilk(LangOptions::Cilk_plus);
   }

@@ -1478,6 +1478,8 @@ def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
   Flags<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">;
 def fopencilk_enable_pedigrees : Flag<["-"], "fopencilk-enable-pedigrees">,
   Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable OpenCilk pedigrees">;
+def fopencilk_enable_splitters : Flag<["-"], "fopencilk-enable-splitters">,
+  Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable OpenCilk splitters">;
 
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;

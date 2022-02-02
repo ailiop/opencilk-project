@@ -2767,6 +2767,9 @@ void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
   // If pedigrees are enabled, use the pedigree-enabled ABI bitcode instead.
   if (Args.hasArg(options::OPT_fopencilk_enable_pedigrees))
     OpenCilkABIBCFilename.assign("libopencilk-pedigrees-abi.bc");
+  // If splitters are enabled, use the splitter-enabled ABI bitcode instead.
+  if (Args.hasArg(options::OPT_fopencilk_enable_splitters))
+    OpenCilkABIBCFilename.assign("libopencilk-splitter-abi.bc");
 
   if (auto RuntimePath = getOpenCilkRuntimePath(Args)) {
     SmallString<128> P;
@@ -2857,6 +2860,11 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
     // If pedigrees are enabled, link the OpenCilk pedigree library.
     if (Args.hasArg(options::OPT_fopencilk_enable_pedigrees))
       AddLinkTapirRuntimeLib(Args, CmdArgs, "opencilk-pedigrees", RLO,
+                             !StaticOpenCilk);
+
+    // If splitters are enabled, link the OpenCilk splitter library.
+    if (Args.hasArg(options::OPT_fopencilk_enable_splitters))
+      AddLinkTapirRuntimeLib(Args, CmdArgs, "opencilk-splitter", RLO,
                              !StaticOpenCilk);
 
     // Link the correct Cilk personality fn

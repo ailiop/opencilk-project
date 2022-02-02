@@ -1185,6 +1185,9 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
   // If pedigrees are enabled, use the pedigree-enabled ABI bitcode instead.
   if (Args.hasArg(options::OPT_fopencilk_enable_pedigrees))
     OpenCilkABIBCFilename.assign("libopencilk-pedigrees-abi.bc");
+  // If splitters are enabled, use the splitter-enabled ABI bitcode instead.
+  if (Args.hasArg(options::OPT_fopencilk_enable_splitters))
+    OpenCilkABIBCFilename.assign("libopencilk-splitter-abi.bc");
 
   if (auto RuntimePath = getOpenCilkRuntimePath(Args)) {
     SmallString<128> P;
@@ -1225,6 +1228,10 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     if (Args.hasArg(options::OPT_fopencilk_enable_pedigrees))
       CmdArgs.push_back("-lopencilk-pedigrees");
 
+    // // If splitters are enabled, link the OpenCilk splitter library.
+    // if (Args.hasArg(options::OPT_fopencilk_enable_splitters))
+    //   CmdArgs.push_back("-lopencilk-splitter");
+
     // Link the correct Cilk personality fn
     if (getDriver().CCCIsCXX())
       CmdArgs.push_back("-lopencilk-personality-cpp");
@@ -1234,7 +1241,14 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     // Link the opencilk runtime.  We do this after linking the personality
     // function, to ensure that symbols are resolved correctly when using static
     // linking.
-    CmdArgs.push_back("-lopencilk");
+    //
+    // NOTE: [2022-01-31; ASI] The splitter-enabled OpenCilk library is
+    // currently a "copy" of libopencilk (instead of an "add-on") with the
+    // appropriate changes
+    if (Args.hasArg(options::OPT_fopencilk_enable_splitters))
+      CmdArgs.push_back("-lopencilk-splitter");
+    else
+      CmdArgs.push_back("-lopencilk");
 
     // Add to the executable's runpath the default directory containing OpenCilk
     // runtime.
