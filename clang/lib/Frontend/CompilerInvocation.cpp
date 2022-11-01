@@ -3530,6 +3530,8 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
     GenerateArg(Args, OPT_fcilkplus, SA);
   if (Opts.CilkOptions.has(CilkOpt_Pedigrees))
     GenerateArg(Args, OPT_fopencilk_enable_pedigrees, SA);
+  if (Opts.CilkOptions.has(CilkOpt_Splitters))
+    GenerateArg(Args, OPT_fopencilk_enable_splitters, SA);
 
   if (Opts.SignedOverflowBehavior == LangOptions::SOB_Trapping) {
     GenerateArg(Args, OPT_ftrapv, SA);
@@ -3936,6 +3938,8 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.setCilk(LangOptions::Cilk_opencilk);
     if (Args.hasArg(OPT_fopencilk_enable_pedigrees))
       Opts.CilkOptions.set(CilkOpt_Pedigrees, true);
+    if (Args.hasArg(OPT_fopencilk_enable_splitters))
+      Opts.CilkOptions.set(CilkOpt_Splitters, true);
   } else if (CilkPlus) {
     Opts.setCilk(LangOptions::Cilk_plus);
   }
