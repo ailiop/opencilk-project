@@ -3225,6 +3225,13 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                                      : "opencilk-pedigrees",
                              RLO, !StaticOpenCilk);
 
+    // If splitters are enabled, link the OpenCilk splitter library.
+    if (Args.hasArg(options::OPT_fopencilk_enable_splitters))
+      AddLinkTapirRuntimeLib(Args, CmdArgs,
+                             UseAsan ? "opencilk-splitters-asan"
+                                     : "opencilk-splitters",
+                             RLO, !StaticOpenCilk);
+
     // Link the correct Cilk personality fn
     if (getDriver().CCCIsCXX())
       AddLinkTapirRuntimeLib(Args, CmdArgs,
